@@ -11,3 +11,67 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAW
+  TRANSFER
+}
+
+enum AccountType {
+  SAVINGS
+  CHECKING
+}
+
+model User {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  email     String    @unique
+  password  String
+  role      UserRole  @default(CUSTOMER)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  accounts  Account[]
+
+  @@map("users")
+}
+
+model Account {
+  id            String        @id @default(uuid()) @db.Uuid
+  accountNumber String        @unique
+  balance       Decimal       @default(0) @db.Decimal(18, 2)
+  type          AccountType
+  userId        String        @db.Uuid
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outgoingTx    Transaction[] @relation("OutgoingTransactions")
+  incomingTx    Transaction[] @relation("IncomingTransactions")
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Transaction {
+  id            String          @id @default(uuid()) @db.Uuid
+  amount        Decimal         @db.Decimal(18, 2)
+  type          TransactionType
+  fromAccountId String?         @db.Uuid
+  toAccountId   String?         @db.Uuid
+  description   String?
+  createdAt     DateTime        @default(now())
+
+  fromAccount   Account?        @relation("OutgoingTransactions", fields: [fromAccountId], references: [id], onDelete: SetNull)
+  toAccount     Account?        @relation("IncomingTransactions", fields: [toAccountId], references: [id], onDelete: SetNull)
+
+  @@index([fromAccountId])
+  @@index([toAccountId])
+  @@map("transactions")
+}
